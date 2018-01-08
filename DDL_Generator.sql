@@ -49,9 +49,21 @@ BEGIN TRY
 				SELECT
 					(
 						SELECT	
-							CHAR(10) + CHAR(9) + CHAR(9) + CHAR(9) + '[' + Name + '],'
+							CHAR(10) + CHAR(9) + CHAR(9) + CHAR(9) + 
+							'[' + AC.Name + '] ' +	--Column Name
+							 CASE 
+								WHEN AC.is_identity = 1
+								THEN 'IDENTITY(' + 
+									  CONVERT(NVARCHAR, IC.seed_value) + ',' + 
+									  CONVERT(NVARCHAR, IC.increment_value) + ')'
+								ELSE ''
+							END
+								
 						FROM
 							sys.all_columns AS AC
+							LEFT JOIN
+								sys.identity_columns AS IC
+									ON IC.Object_ID = AC.Object_ID
 						WHERE
 							AC.object_ID = AO.Object_ID
 						FOR XML PATH('')
