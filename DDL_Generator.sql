@@ -1,13 +1,14 @@
 USE [AdventureWorks2012]
 GO
--- [dbo].[SP_DDL_Generator] 'AWBuildVersion'
+-- [dbo].[SP_DDL_Generator] Person
 
 IF EXISTS(SELECT * FROM sys.procedures WHERE Name like 'SP_DDL_Generator')
 	DROP PROCEDURE [dbo].[SP_DDL_Generator]
 GO
 CREATE PROCEDURE [dbo].[SP_DDL_Generator]
 (
-	@ObjectName SYSNAME
+	--If no object name is provided, the SPROC returns DDL for all tables / view in the database
+	@ObjectName SYSNAME = NULL
 )
 AS
 
@@ -20,16 +21,15 @@ BEGIN TRY
 	SET @DDL_String = 
 		'    USE ' + CONVERT(NVARCHAR, DB_NAME()) + ' 
 	GO
-
-	CREATE '
+	'
 
 	SELECT 
 		@DDL_String = @DDL_String + 
 		CASE 
 			WHEN AO.Type = 'V'
-			THEN 'VIEW '
+			THEN 'CREATE VIEW '
 			WHEN AO.Type = 'U'
-			THEN 'TABLE '
+			THEN 'CREATE TABLE '
 		END
 
 		+ '[' + S.Name + '].[' + AO.Name + ']
@@ -38,7 +38,7 @@ BEGIN TRY
 		STUFF(Columns.Name, LEN(Columns.Name), 1, '')
 	+
 	'
-		)'
+		)' + CHAR(10) + CHAR(9) 
 	FROM
 		sys.all_objects AS AO
 		INNER JOIN
@@ -65,7 +65,7 @@ BEGIN TRY
 								THEN  '(' + CONVERT(NVARCHAR, T.Max_Length) + ')'
 								ELSE ''
 							END + ']' +
-							','
+							',' 
 						FROM
 							sys.all_columns AS AC
 							LEFT JOIN
@@ -79,11 +79,14 @@ BEGIN TRY
 						FOR XML PATH('')
 					) AS Name
 			) AS Columns
-		WHERE
-			AO.Name = @ObjectName
-		AND AO.type IN ('U', 'V')
+	WHERE
+		AO.Name = ISNULL(@ObjectName, AO.Name)
+	AND AO.type IN ('U', 'V')
+	AND SCHEMA_NAME(AO.schema_id) NOT IN('sys', 'INFORMATION_SCHEMA')		--We don't want to return sys objects
+	ORDER BY
+		AO.name ASC
 
-		PRINT @DDL_String
+	PRINT @DDL_String 
 END TRY
 
 BEGIN CATCH
