@@ -1,4 +1,6 @@
---SP_DDL_Generator 'AWBuildVersion'
+USE [AdventureWorks2012]
+GO
+-- [dbo].[SP_DDL_Generator] 'AWBuildVersion'
 
 IF EXISTS(SELECT * FROM sys.procedures WHERE Name like 'SP_DDL_Generator')
 	DROP PROCEDURE [dbo].[SP_DDL_Generator]
@@ -25,7 +27,7 @@ BEGIN TRY
 		@DDL_String = @DDL_String + 
 		CASE 
 			WHEN AO.Type = 'V'
-			THEN 'VIEW'
+			THEN 'VIEW '
 			WHEN AO.Type = 'U'
 			THEN 'TABLE '
 		END
@@ -34,7 +36,6 @@ BEGIN TRY
 		('
 	+
 		STUFF(Columns.Name, LEN(Columns.Name), 1, '')
-		--Columns.Name
 	+
 	'
 		)'
@@ -55,12 +56,21 @@ BEGIN TRY
 								WHEN AC.is_identity = 1
 								THEN 'IDENTITY(' + 
 									  CONVERT(NVARCHAR, IC.seed_value) + ',' + 
-									  CONVERT(NVARCHAR, IC.increment_value) + ')'
+									  CONVERT(NVARCHAR, IC.increment_value) + ') '
 								ELSE ''
-							END
-								
+							END + 
+							'[' + T.Name +
+							CASE
+								WHEN T.Name like '%varchar%' 
+								THEN  '(' + CONVERT(NVARCHAR, T.Max_Length) + ')'
+								ELSE ''
+							END + ']' +
+							','
 						FROM
 							sys.all_columns AS AC
+							LEFT JOIN
+								sys.types AS T
+									ON T.user_type_id = AC.user_type_id
 							LEFT JOIN
 								sys.identity_columns AS IC
 									ON IC.Object_ID = AC.Object_ID
@@ -71,7 +81,7 @@ BEGIN TRY
 			) AS Columns
 		WHERE
 			AO.Name = @ObjectName
-
+		AND AO.type IN ('U', 'V')
 
 		PRINT @DDL_String
 END TRY
