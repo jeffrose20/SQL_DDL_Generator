@@ -8,7 +8,8 @@ GO
 CREATE PROCEDURE [dbo].[SP_DDL_Generator]
 (
 	--If no object name is provided, the SPROC returns DDL for all tables / view in the database
-	@ObjectName SYSNAME = NULL
+	@ObjectName SYSNAME = NULL,
+	@Schema SYSNAME = dbo
 )
 AS
 
@@ -16,9 +17,9 @@ SET NOCOUNT ON
 
 BEGIN TRY
 	--This is the string containing the DDL info the we will print to the console
-	DECLARE @DDL_String NVARCHAR(MAX) = ''
-
-	SET @DDL_String = 
+	DECLARE @CRLF CHAR(2) = CHAR(13) + CHAR(10)
+	DECLARE @TAB CHAR(1) = CHAR(9)
+	DECLARE @DDL_String NVARCHAR(MAX) =  
 		'    USE ' + CONVERT(NVARCHAR, DB_NAME()) + ' 
 	GO
 	'
@@ -32,13 +33,13 @@ BEGIN TRY
 			THEN 'CREATE TABLE '
 		END
 
-		+ '[' + S.Name + '].[' + AO.Name + ']
+		+ QUOTENAME(S.Name) + '.' + QUOTENAME(AO.Name) + '
 		('
 	+
 		STUFF(Columns.Name, LEN(Columns.Name), 1, '')
 	+
 	'
-		)' + CHAR(10) + CHAR(9) 
+		)' + @CRLF + @TAB 
 	FROM
 		sys.all_objects AS AO
 		INNER JOIN
@@ -50,21 +51,26 @@ BEGIN TRY
 				SELECT
 					(
 						SELECT	
-							CHAR(10) + CHAR(9) + CHAR(9) + CHAR(9) + 
-							'[' + AC.Name + '] ' +	--Column Name
-							 CASE 
-								WHEN AC.is_identity = 1
-								THEN 'IDENTITY(' + 
-									  CONVERT(NVARCHAR, IC.seed_value) + ',' + 
-									  CONVERT(NVARCHAR, IC.increment_value) + ') '
-								ELSE ''
-							END + 
-							'[' + T.Name +
+							@CRLF + @TAB + @TAB + @TAB + 
+							QUOTENAME(AC.Name)  +	--Column Name
+							QUOTENAME(T.Name) +		--Data type name
 							CASE
 								WHEN T.Name like '%varchar%' 
 								THEN  '(' + CONVERT(NVARCHAR, T.Max_Length) + ')'
 								ELSE ''
-							END + ']' +
+							END  +
+							 CASE					--Identity info
+								WHEN AC.is_identity = 1
+								THEN 'IDENTITY(' + 
+									  CONVERT(NVARCHAR, IC.seed_value) + ',' + 
+									  CONVERT(NVARCHAR, IC.increment_value) + ')'
+								ELSE ''
+							END + 
+							CASE					--NULL or NOT NULL
+								WHEN AC.is_nullable = 1 
+								THEN ' NULL'
+								ELSE ' NOT NULL'
+							END  +
 							',' 
 						FROM
 							sys.all_columns AS AC
