@@ -17,7 +17,7 @@ SET NOCOUNT ON
 
 BEGIN TRY
 	--This is the string containing the DDL info the we will print to the console
-	DECLARE @CRLF CHAR(2) = CHAR(13) + CHAR(10)
+	DECLARE @CRLF CHAR(1) = CHAR(10);	-- was: CHAR(13) + CHAR(10), caused &#x0D; in output
 	DECLARE @TAB CHAR(1) = CHAR(9)
 	DECLARE @DDL_String NVARCHAR(MAX) =  
 		'    USE ' + CONVERT(NVARCHAR, DB_NAME()) + ' 
@@ -53,15 +53,21 @@ BEGIN TRY
 						SELECT	
 							@CRLF + @TAB + @TAB + @TAB + 
 							QUOTENAME(AC.Name)  +	--Column Name
-							QUOTENAME(T.Name) +		--Data type name
+							' ' + QUOTENAME(T.Name) +		--Data type name
 							CASE
-								WHEN T.Name like '%varchar%' 
-								THEN  '(' + CONVERT(NVARCHAR, T.Max_Length) + ')'
+								WHEN T.Name = 'varchar' 
+									THEN  '(' + CONVERT(NVARCHAR, AC.Max_Length) + ')'
+								WHEN T.Name = 'nvarchar' 
+									THEN  '(' + CONVERT(NVARCHAR, AC.Max_Length/2) + ')'
+								WHEN T.Name = 'char' 
+									THEN  '(' + CONVERT(NVARCHAR, AC.Max_Length) + ')'
+								WHEN T.Name = 'decimal'
+									THEN  '(' + CONVERT(NVARCHAR, AC.precision) + ',' + CONVERT(NVARCHAR, AC.scale) + ')'
 								ELSE ''
 							END  +
 							 CASE					--Identity info
 								WHEN AC.is_identity = 1
-								THEN 'IDENTITY(' + 
+								THEN ' IDENTITY(' + 
 									  CONVERT(NVARCHAR, IC.seed_value) + ',' + 
 									  CONVERT(NVARCHAR, IC.increment_value) + ')'
 								ELSE ''
