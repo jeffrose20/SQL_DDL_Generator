@@ -14,3 +14,5 @@ The following aspects of the DDL statement are included based on my specific use
 * Columns data types
 * Identity columns (including seed_value and increment_value)
 
+Also added an output parameter so that the DDL String that this SPROC produces can be returned as output,
+in addition to being printed to the console.
