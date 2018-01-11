@@ -1,15 +1,14 @@
 USE [AdventureWorks2012]
 GO
--- [dbo].[SP_DDL_Generator] Person
 
 IF EXISTS(SELECT * FROM sys.procedures WHERE Name like 'SP_DDL_Generator')
 	DROP PROCEDURE [dbo].[SP_DDL_Generator]
 GO
 CREATE PROCEDURE [dbo].[SP_DDL_Generator]
 (
-	--If no object name is provided, the SPROC returns DDL for all tables / view in the database
-	@ObjectName SYSNAME = NULL,
-	@Schema SYSNAME = dbo
+	@ObjectName SYSNAME,
+	@Schema SYSNAME = dbo,
+	@DDL_String NVARCHAR(MAX) = '' OUTPUT		--Output paremeter used if someone wants to call this programatically
 )
 AS
 
@@ -17,9 +16,7 @@ SET NOCOUNT ON
 
 BEGIN TRY
 	--This is the string containing the DDL info the we will print to the console
-	DECLARE @CRLF CHAR(1) = CHAR(10);	-- was: CHAR(13) + CHAR(10), caused &#x0D; in output
-	DECLARE @TAB CHAR(1) = CHAR(9)
-	DECLARE @DDL_String NVARCHAR(MAX) =  
+	SET @DDL_String =  
 		'    USE ' + CONVERT(NVARCHAR, DB_NAME()) + ' 
 	GO
 	'
@@ -39,7 +36,8 @@ BEGIN TRY
 		STUFF(Columns.Name, LEN(Columns.Name), 1, '')
 	+
 	'
-		)' + @CRLF + @TAB 
+		)
+		'  
 	FROM
 		sys.all_objects AS AO
 		INNER JOIN
@@ -51,7 +49,7 @@ BEGIN TRY
 				SELECT
 					(
 						SELECT	
-							@CRLF + @TAB + @TAB + @TAB + 
+							CHAR(10) + CHAR(9) + CHAR(9) + CHAR(9) + 
 							QUOTENAME(AC.Name)  +	--Column Name
 							' ' + QUOTENAME(T.Name) +		--Data type name
 							CASE
@@ -94,11 +92,13 @@ BEGIN TRY
 	WHERE
 		AO.Name = ISNULL(@ObjectName, AO.Name)
 	AND AO.type IN ('U', 'V')
-	AND SCHEMA_NAME(AO.schema_id) NOT IN('sys', 'INFORMATION_SCHEMA')		--We don't want to return sys objects
+	AND S.Name = ISNULL(@Schema, S.Name)
+	--AND SCHEMA_NAME(AO.schema_id) NOT IN('sys', 'INFORMATION_SCHEMA')		--We don't want to return sys objects
 	ORDER BY
 		AO.name ASC
 
 	PRINT @DDL_String 
+
 END TRY
 
 BEGIN CATCH
