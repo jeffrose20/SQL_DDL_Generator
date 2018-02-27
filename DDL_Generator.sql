@@ -66,12 +66,12 @@ BEGIN TRY
 							 CASE					--Identity info
 								WHEN AC.is_identity = 1
 								THEN ' IDENTITY(' + 
-									  CONVERT(NVARCHAR, IC.seed_value) + ',' + 
-									  CONVERT(NVARCHAR, IC.increment_value) + ')'
+									  CONVERT(NVARCHAR, ISNULL(IC.seed_value, 1)) + ',' +
+									  CONVERT(NVARCHAR, ISNULL(IC.increment_value, 1)) + ')'
 								ELSE ''
 							END + 
 							CASE					--NULL or NOT NULL
-								WHEN AC.is_nullable = 1 
+							  WHEN AC.is_nullable = 1
 								THEN ' NULL'
 								ELSE ' NOT NULL'
 							END  +
